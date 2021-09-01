@@ -32,7 +32,11 @@ worksheet.write("J1", "Image url")
 def fix_url(links, website):
 	urls = []
 	for link in links:
-		url = link.get_attribute("href")
+		try:
+			url = link.get_attribute("href")
+		except Exception:
+			url = link.get_attribute("src")
+
 		if url[0] == "/":
 			url = ''.join(website) + ''.join(url)
 		elif not "http" in url:
@@ -50,7 +54,7 @@ def tbs(url):
 
 	#get image urls
 	gallery = driver.find_elements_by_xpath('//a[contains(@href, "/img/gallery/")]')
-	image_url = fix_url(gallery, 'https://www.team-blacksheep.com/')
+	image_url = fix_url(gallery, 'https://www.team-blacksheep.com')
 
 	features = ''
 	specification = ''
@@ -85,7 +89,67 @@ def tbs(url):
 		"features": features,
 		"inclusion": inclusion,
 		"specification": specification,
-		"image_url": ','.join(map(str, image_url)) 
+		"image_url": ','.join(map(str, image_url))
+	}
+
+	return data
+
+def n_factory(url):
+	driver.get(url)
+	product_name = driver.find_element_by_xpath('//*[@id="product-offer"]/div/div/div/div[2]/div/div[2]/h1').text
+	try:
+		price = driver.find_element_by_xpath('//*[@id="product-offer"]/div/div/div/div[2]/div/div[5]/div/div[1]/div[1]/div[1]/span/span').text
+	except Exception:
+		price = driver.find_element_by_xpath('//*[@id="product-offer"]/div/div/div/div[2]/div/div[8]/div/div[1]/div[1]/div[1]').text
+	main_desc = driver.find_element_by_xpath('//*[@id="product-offer"]/div/div/div/div[2]/div/div[3]').text
+	new_product_infos = driver.find_elements_by_xpath('//*[@id="tab-description"]//*')
+
+	#get image urls
+	try: 
+		gallery_driver = driver.find_element_by_xpath('//*[@id="product-offer"]/div/div/div/div[1]/div[1]/div[2]/div[1]/div')
+	except Exception:
+		gallery_driver = driver.find_element_by_xpath('//*[@id="product-offer"]/div/div/div/div[1]/div[1]/div/div[1]/div/div/div')
+	gallery = gallery_driver.find_elements_by_tag_name('img')
+	image_url = []
+
+	for img in gallery:
+		image_url.append(img.get_attribute("src"))
+
+	features = ''
+	specification = ''
+	inclusion = ''
+
+	description = driver.find_element_by_xpath('//*[@id="tab-description"]/div[2]')
+	new_product_infos = description.find_elements_by_tag_name('p')
+
+	filter = 'desc'
+	for info in new_product_infos:
+		if 'FEATURES' in info.text or 'Key-Features:' in info.text:
+			filter = 'features'
+		elif 'SPECIFICATION' in info.text or 'PRODUCT SPECIFICATIONS' in info.text:
+			filter = 'specs'
+		elif 'INCLUDES' in info.text:
+			filter = 'inclusion'
+		elif 'MORE INFORMATION' in info.text:
+			filter == 'others'
+
+		if filter == 'desc':
+			main_desc = main_desc + '\n {}'.format(info.text)
+		elif filter == 'features':
+			features = features + '{}, '.format(info.text)
+		elif filter == 'specs':
+			specification = specification + '{}, '.format(info.text)
+		elif filter == 'inclusion':
+			inclusion = inclusion + '{}, '.format(info.text)
+
+	data = {
+		"product_name": product_name,
+		"price": price,
+		"description": main_desc,
+		"features": features,
+		"inclusion": inclusion,
+		"specification": specification,
+		"image_url": ','.join(map(str, image_url))
 	}
 
 	return data
@@ -104,6 +168,20 @@ def main():
 			worksheet.write(i+1, 7, res['inclusion'])
 			worksheet.write(i+1, 8, res['specification'])
 			worksheet.write(i+1, 9, res['image_url'])
+
+		elif products['Shopname'][i] == 'N-Factory':
+			res = n_factory(url)
+			worksheet.write(i+1, 0, res['product_name'])
+			worksheet.write(i+1, 1, res['price'])
+			worksheet.write(i+1, 2, products['Shopname'][i])
+			worksheet.write(i+1, 3, products['Location'][i])
+			worksheet.write(i+1, 4, url)
+			worksheet.write(i+1, 5, res['description'])
+			worksheet.write(i+1, 6, res['features'])
+			worksheet.write(i+1, 7, res['inclusion'])
+			worksheet.write(i+1, 8, res['specification'])
+			worksheet.write(i+1, 9, res['image_url'])
+
 
 if __name__ == '__main__':
 	main()
